@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
+from app.routers.auth import router as auth_router
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -39,5 +40,5 @@ def health_check():
     }
 
 
-# Future business endpoints will be registered under /api/v1
-# e.g., app.include_router(api_v1_router, prefix="/api/v1")
+# Mount API routers
+app.include_router(auth_router, prefix="/api/v1")

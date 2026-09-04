@@ -11,9 +11,9 @@ class Settings(BaseSettings):
 
     DATABASE_URL: str = "postgresql+psycopg://postgres:postgres@db:5432/attendance_db"
 
-    JWT_SECRET_KEY: str = "change-me-default-secret-key-minimum-32-chars"
+    JWT_SECRET_KEY: str
     JWT_ALGORITHM: str = "HS256"
-    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
     CORS_ORIGINS: Union[str, List[str]] = "http://localhost:5173"
 
