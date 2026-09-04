@@ -1,0 +1,25 @@
+# Environments & Secrets
+.env
+.venv/
+venv/
+
+# Python cache & compiled files
+__pycache__/
+*.py[cod]
+
+# Testing & Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Node / Frontend builds
+node_modules/
+dist/
+
+# IDE & Editor files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
