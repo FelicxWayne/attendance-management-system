@@ -8,6 +8,13 @@ from app.schemas.employee import (
     EmployeeResponse,
     EmployeeUpdate,
 )
+from app.schemas.attendance import (
+    AttendanceListResponse,
+    AttendanceResponse,
+    CheckInRequest,
+    CheckOutRequest,
+    DailyAttendanceSummaryResponse,
+)
 
 __all__ = [
     "LoginRequest",
@@ -18,4 +25,9 @@ __all__ = [
     "EmployeeUpdate",
     "EmployeeResponse",
     "EmployeeListResponse",
+    "CheckInRequest",
+    "CheckOutRequest",
+    "AttendanceResponse",
+    "AttendanceListResponse",
+    "DailyAttendanceSummaryResponse",
 ]

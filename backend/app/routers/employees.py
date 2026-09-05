@@ -1,15 +1,18 @@
+from datetime import date
 from typing import Optional
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_db, require_role
 from app.db.models.employee import EmployeeStatus
+from app.schemas.attendance import AttendanceListResponse
 from app.schemas.employee import (
     EmployeeCreate,
     EmployeeListResponse,
     EmployeeResponse,
     EmployeeUpdate,
 )
+from app.services.attendance_service import attendance_service
 from app.services.employee_service import employee_service
 
 # All employee endpoints require either ADMIN or HR role privileges
@@ -115,3 +118,31 @@ def deactivate_employee(
 ):
     """Logically deactivate employee by setting status to INACTIVE."""
     return employee_service.deactivate_employee(db, employee_id)
+
+
+@router.get(
+    "/{employee_id}/attendance",
+    response_model=AttendanceListResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get employee attendance history",
+    description="Retrieve chronological attendance records for an employee by human-facing employee_id or internal PK.",
+)
+def get_employee_attendance(
+    employee_id: str,
+    page: int = Query(1, ge=1, description="Page number (1-indexed)"),
+    page_size: int = Query(10, ge=1, le=100, description="Items per page"),
+    start_date: Optional[date] = Query(None, description="Start date filter (inclusive)"),
+    end_date: Optional[date] = Query(None, description="End date filter (inclusive)"),
+    sort_order: str = Query("desc", description="Sort order by date: 'asc' or 'desc'"),
+    db: Session = Depends(get_db),
+):
+    """Fetch attendance history for an employee."""
+    return attendance_service.get_employee_attendance_history(
+        db=db,
+        employee_identifier=employee_id,
+        page=page,
+        page_size=page_size,
+        start_date=start_date,
+        end_date=end_date,
+        sort_order=sort_order,
+    )
