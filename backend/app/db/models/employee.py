@@ -30,7 +30,7 @@ class Employee(Base, TimestampMixin):
     __tablename__ = "employees"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
-    employee_code: Mapped[str] = mapped_column(String(20), nullable=False)
+    employee_id: Mapped[str] = mapped_column(String(20), nullable=False)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     email: Mapped[str] = mapped_column(String(255), nullable=False)
     mobile: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
@@ -59,10 +59,10 @@ class Employee(Base, TimestampMixin):
     )
 
     __table_args__ = (
-        UniqueConstraint("employee_code", name="uq_employees_employee_code"),
+        UniqueConstraint("employee_id", name="uq_employees_employee_id"),
         CheckConstraint("status IN ('ACTIVE', 'INACTIVE')", name="ck_employees_status"),
         Index("ix_employees_lower_email", text("lower(email)"), unique=True),
     )
 
     def __repr__(self) -> str:
-        return f"<Employee id={self.id} code={self.employee_code!r} name={self.name!r} status={self.status!r}>"
+        return f"<Employee id={self.id} employee_id={self.employee_id!r} name={self.name!r} status={self.status!r}>"

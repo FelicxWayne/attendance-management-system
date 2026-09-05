@@ -6,3 +6,13 @@ os.environ.setdefault(
     "test-secret-key-for-pytest-environment-min-32-chars",
 )
 os.environ.setdefault("ENVIRONMENT", "testing")
+
+from sqlalchemy import BigInteger
+from sqlalchemy.ext.compiler import compiles
+
+
+@compiles(BigInteger, "sqlite")
+def compile_bigint_sqlite(element, compiler, **kw):
+    """Compile BigInteger to INTEGER under SQLite to allow ROWID autoincrement primary keys."""
+    return "INTEGER"
+

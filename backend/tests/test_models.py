@@ -81,14 +81,14 @@ def test_employee_model_schema():
     assert table.c.id.primary_key is True
     assert isinstance(table.c.id.type, BigInteger)
 
-    assert table.c.employee_code.nullable is False
-    assert table.c.employee_code.type.length == 20
+    assert table.c.employee_id.nullable is False
+    assert table.c.employee_id.type.length == 20
 
-    # Single unique constraint uq_employees_employee_code
+    # Single unique constraint uq_employees_employee_id
     unique_constraints = [c for c in table.constraints if isinstance(c, UniqueConstraint)]
-    emp_code_uq = next((u for u in unique_constraints if u.name == "uq_employees_employee_code"), None)
-    assert emp_code_uq is not None
-    assert [col.name for col in emp_code_uq.columns] == ["employee_code"]
+    emp_id_uq = next((u for u in unique_constraints if u.name == "uq_employees_employee_id"), None)
+    assert emp_id_uq is not None
+    assert [col.name for col in emp_id_uq.columns] == ["employee_id"]
 
     assert table.c.name.nullable is False
     assert table.c.name.type.length == 100
@@ -125,9 +125,9 @@ def test_employee_model_schema():
     assert lower_email_idx is not None
     assert lower_email_idx.unique is True
 
-    # Redundant index ix_employees_employee_code must NOT exist
-    emp_code_idx = next((idx for idx in indexes if idx.name == "ix_employees_employee_code"), None)
-    assert emp_code_idx is None
+    # Redundant index ix_employees_employee_id must NOT exist
+    emp_id_idx = next((idx for idx in indexes if idx.name == "ix_employees_employee_id"), None)
+    assert emp_id_idx is None
 
 
 def test_attendance_model_schema():
@@ -206,14 +206,14 @@ def test_model_instantiation():
     assert dept.name == "Engineering"
 
     emp = Employee(
-        employee_code="EMP001",
+        employee_id="EMP001",
         name="Alex Smith",
         email="alex.smith@example.com",
         designation="Software Engineer",
         status=EmployeeStatus.ACTIVE.value,
         department=dept,
     )
-    assert emp.employee_code == "EMP001"
+    assert emp.employee_id == "EMP001"
     assert emp.department.name == "Engineering"
 
     att = Attendance(
@@ -221,6 +221,6 @@ def test_model_instantiation():
         attendance_date=date(2026, 9, 5),
         check_in=datetime(2026, 9, 5, 9, 0, 0, tzinfo=timezone.utc),
     )
-    assert att.employee.employee_code == "EMP001"
+    assert att.employee.employee_id == "EMP001"
     assert att.attendance_date == date(2026, 9, 5)
     assert att.check_out is None
