@@ -15,6 +15,10 @@ from app.schemas.attendance import (
     CheckOutRequest,
     DailyAttendanceSummaryResponse,
 )
+from app.schemas.dashboard import (
+    DashboardResponse,
+    DepartmentEmployeeCount,
+)
 
 __all__ = [
     "LoginRequest",
@@ -30,4 +34,7 @@ __all__ = [
     "AttendanceResponse",
     "AttendanceListResponse",
     "DailyAttendanceSummaryResponse",
+    "DepartmentEmployeeCount",
+    "DashboardResponse",
 ]
+
