@@ -1,6 +1,6 @@
 from typing import Generator, Optional
 from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 import jwt
 from sqlalchemy.orm import Session
 
@@ -8,11 +8,8 @@ from app.core.security import decode_access_token
 from app.db.database import SessionLocal
 from app.db.models.user import User
 
-# OAuth2 scheme for extracting Bearer token from the Authorization header
-oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl="/api/v1/auth/login",
-    auto_error=False,
-)
+# HTTPBearer scheme for extracting Bearer token from Authorization header and enabling Swagger auth
+bearer_scheme = HTTPBearer(auto_error=False)
 
 
 def get_db() -> Generator[Session, None, None]:
@@ -28,13 +25,14 @@ def get_db() -> Generator[Session, None, None]:
 
 
 def get_current_user(
-    token: Optional[str] = Depends(oauth2_scheme),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme),
     db: Session = Depends(get_db),
 ) -> User:
     """Validate JWT access token and return the authenticated database User entity.
 
     Raises HTTP 401 Unauthorized if token is missing, invalid, expired, or user does not exist.
     """
+    token = credentials.credentials if credentials else None
     if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

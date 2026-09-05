@@ -223,3 +223,34 @@ def test_rbac_admin_role_enforcement():
     )
     assert resp1.status_code == 200
     assert resp2.status_code == 200
+
+
+def test_swagger_openapi_uses_http_bearer():
+    """Verify Swagger/OpenAPI schema configures HTTPBearer and excludes OAuth2PasswordBearer."""
+    openapi_schema = app.openapi()
+    security_schemes = openapi_schema.get("components", {}).get("securitySchemes", {})
+
+    # Ensure HTTPBearer security scheme exists and is correctly configured
+    assert "HTTPBearer" in security_schemes
+    assert security_schemes["HTTPBearer"]["type"] == "http"
+    assert security_schemes["HTTPBearer"]["scheme"] == "bearer"
+
+    # Ensure OAuth2 password flow is NOT used (which caused the Swagger 422 error)
+    assert "OAuth2PasswordBearer" not in security_schemes
+
+    # Ensure /api/v1/auth/me references HTTPBearer security
+    me_operation = openapi_schema["paths"]["/api/v1/auth/me"]["get"]
+    assert "security" in me_operation
+    assert {"HTTPBearer": []} in me_operation["security"]
+
+
+def test_get_me_non_bearer_auth_header():
+    """Verify GET /api/v1/auth/me rejects non-Bearer authorization schemes with HTTP 401."""
+    response = client.get(
+        "/api/v1/auth/me",
+        headers={"Authorization": "Basic dXNlcjpwYXNz"},
+    )
+    assert response.status_code == 401
+    assert response.headers.get("WWW-Authenticate") == "Bearer"
+    assert response.json()["detail"] == "Authentication credentials were not provided"
+
