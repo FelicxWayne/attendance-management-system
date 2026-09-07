@@ -1,0 +1,324 @@
+============================================================
+MINI ATTENDANCE MANAGEMENT SYSTEM
+SETUP GUIDE
+============================================================
+
+This guide walks through getting the backend and frontend running
+locally. It reflects only what is actually present in this repository.
+
+------------------------------------------------------------
+PREREQUISITES
+------------------------------------------------------------
+
+- Git
+- Docker and Docker Compose (recommended path for the database, and
+  optionally the backend)
+- Python 3.12+ (only needed if you run the backend WITHOUT Docker)
+- Node.js and npm (needed for the frontend; no specific version is
+  pinned in package.json, so a current LTS release is recommended)
+- PostgreSQL 16 (only needed if you are not using the provided
+  docker-compose.yml database service)
+
+------------------------------------------------------------
+1. CLONE THE REPOSITORY
+------------------------------------------------------------
+
+    git clone https://github.com/FelicxWayne/attendance-management-system.git
+    cd attendance-management-system
+
+------------------------------------------------------------
+2. ENVIRONMENT VARIABLES
+------------------------------------------------------------
+
+Backend environment file: backend/.env
+A template is provided at: backend/.env.example
+
+Copy the template:
+
+    cd backend
+    cp .env.example .env      # macOS / Linux
+    Copy-Item .env.example .env   # Windows PowerShell
+
+Required variables (from backend/app/core/config.py):
+
+    APP_NAME=Attendance Management System
+    ENVIRONMENT=development
+    DATABASE_URL=postgresql+psycopg://postgres:postgres@db:5432/attendance_db
+    JWT_SECRET_KEY=replace-with-a-secure-secret
+    JWT_ALGORITHM=HS256
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES=30
+    CORS_ORIGINS=http://localhost:5173
+
+IMPORTANT:
+- JWT_SECRET_KEY has no default and is required — the app will fail
+  to start without it. Use any long, random placeholder string for
+  local development; never commit a real production secret.
+- DATABASE_URL's hostname "db" only resolves inside the Docker
+  Compose network. If you run the backend directly with Uvicorn
+  (not in Docker) against the Dockerized Postgres instance, change
+  the host to "localhost", e.g.:
+      DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/attendance_db
+
+The frontend has NO .env file and does not read import.meta.env
+anywhere in its source. Its API base URL is hardcoded in
+frontend/src/api/client.js as http://localhost:8000/api/v1. If your
+backend runs on a different host/port, you must edit that file
+directly — there is no environment-variable override today.
+
+------------------------------------------------------------
+3. DATABASE SETUP
+------------------------------------------------------------
+
+The repository's docker-compose.yml provisions PostgreSQL 16 for you.
+From the repository root (where docker-compose.yml lives):
+
+    docker compose up -d db
+
+This starts only the "db" service:
+    - Image: postgres:16-alpine
+    - Port: 5432 (mapped to host 5432)
+    - Database name: attendance_db
+    - Credentials: postgres / postgres
+    - Data persisted in the "postgres_data" Docker volume
+
+Verify it is ready:
+
+    docker compose ps
+    docker exec attendance_db pg_isready -U postgres -d attendance_db
+
+(docker-compose.yml only defines "backend" and "db" services — there
+is no frontend service in Docker Compose. The frontend must be run
+separately with npm, see step 6.)
+
+------------------------------------------------------------
+4. BACKEND SETUP
+------------------------------------------------------------
+
+You have two options. Pick ONE.
+
+OPTION A — Run the backend in Docker (recommended, uses the
+provided Dockerfile):
+
+    # from the repository root, with JWT_SECRET_KEY set in your shell
+    # or in a root-level .env picked up by docker compose
+    export JWT_SECRET_KEY=replace-with-a-secure-secret   # macOS/Linux
+    $env:JWT_SECRET_KEY="replace-with-a-secure-secret"   # PowerShell
+
+    docker compose up -d --build
+
+This builds and starts BOTH "backend" (port 8000) and "db"
+(port 5432) as defined in docker-compose.yml.
+
+OPTION B — Run the backend locally with a Python virtual
+environment (requires PostgreSQL to be reachable, e.g. via
+"docker compose up -d db" from step 3):
+
+    cd backend
+
+    python -m venv .venv
+
+    # Activate the virtual environment:
+    source .venv/bin/activate        # macOS / Linux
+    .venv\Scripts\Activate.ps1       # Windows PowerShell
+
+    pip install -r requirements.txt
+
+Make sure backend/.env is configured as described in step 2
+(with DATABASE_URL pointing at "localhost" if Postgres is only
+reachable on your host, not inside a Docker network).
+
+------------------------------------------------------------
+5. DATABASE MIGRATIONS
+------------------------------------------------------------
+
+Alembic reads DATABASE_URL from your environment/.env
+(backend/alembic/env.py overrides sqlalchemy.url with
+app.core.config.settings.DATABASE_URL), so no separate Alembic
+config edit is required.
+
+Run migrations from the "backend" directory, with your virtual
+environment activated (Option B) or via "docker exec" into the
+running backend container (Option A):
+
+    cd backend
+    alembic upgrade head
+
+This applies both migrations in order:
+    001_initial_schema        -> creates users, departments,
+                                  employees (as employee_code),
+                                  attendance
+    002_rename_employee_id     -> renames employees.employee_code
+                                  to employees.employee_id
+
+If you used Option A (Docker), you can instead run migrations
+inside the running backend container:
+
+    docker exec -it attendance_backend alembic upgrade head
+
+------------------------------------------------------------
+6. PROVISIONING THE FIRST USER (LOGIN CREDENTIAL)
+------------------------------------------------------------
+
+There is NO signup/registration endpoint and NO seed data in this
+repository. You must create at least one row in the "users" table
+yourself before you can log in.
+
+The cleanest way is to use the application's own hashing function
+so the stored hash is compatible with login verification. From the
+"backend" directory, with your virtual environment activated and
+DATABASE_URL pointing at your running Postgres instance:
+
+    python -c "
+    from app.db.database import SessionLocal
+    from app.db.models.user import User
+    from app.core.security import hash_password
+
+    db = SessionLocal()
+    db.add(User(
+        username='your_admin_username',
+        password_hash=hash_password('choose-your-own-password'),
+        role='ADMIN',
+    ))
+    db.commit()
+    db.close()
+    print('User created.')
+    "
+
+Replace 'your_admin_username' and 'choose-your-own-password' with
+your own values. 'role' must be either 'ADMIN' or 'HR' (enforced by
+a database CHECK constraint). This documentation does not include
+any real credentials — you choose your own when running this step.
+
+------------------------------------------------------------
+7. START THE BACKEND
+------------------------------------------------------------
+
+If using Docker (Option A in step 4), the backend is already
+running after "docker compose up -d --build".
+
+If running locally (Option B), from the "backend" directory:
+
+    uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+Backend URL: http://localhost:8000
+
+------------------------------------------------------------
+8. START THE FRONTEND
+------------------------------------------------------------
+
+From the "frontend" directory:
+
+    npm install
+    npm run dev
+
+Frontend URL: http://localhost:5173
+(Port 5173 is explicitly configured in frontend/vite.config.js and
+matches the backend's default CORS_ORIGINS value.)
+
+------------------------------------------------------------
+9. LOG IN
+------------------------------------------------------------
+
+Open http://localhost:5173/login and sign in with the username and
+password you created in step 6.
+
+There is no "Development/Test Credential" shipped with this
+repository — every credential must be provisioned manually as
+described above.
+
+------------------------------------------------------------
+10. SWAGGER / API DOCS
+------------------------------------------------------------
+
+Swagger UI: http://localhost:8000/docs
+ReDoc:      http://localhost:8000/redoc
+
+Both are enabled by default in backend/app/main.py.
+
+------------------------------------------------------------
+TROUBLESHOOTING
+------------------------------------------------------------
+
+- "Docker not running" / connection errors from docker compose:
+  Make sure Docker Desktop (or the Docker daemon) is running before
+  running any "docker compose" command.
+
+- PostgreSQL unavailable / backend can't connect to the database:
+  Confirm the "db" container is healthy: "docker compose ps" should
+  show it as "healthy". Check DATABASE_URL's hostname — it must be
+  "db" when the backend runs inside Docker Compose, or "localhost"
+  (or your DB host) when the backend runs outside Docker.
+
+- Backend port 8000 already in use:
+  Stop whatever else is bound to port 8000, or change the host port
+  mapping in docker-compose.yml ("ports: - '8000:8000'") — note the
+  frontend's hardcoded API base URL assumes port 8000, so you would
+  also need to update frontend/src/api/client.js.
+
+- Frontend port 5173 already in use:
+  Vite will normally pick the next available port automatically, but
+  the backend's CORS_ORIGINS is fixed to http://localhost:5173 by
+  default — if Vite starts on a different port, update CORS_ORIGINS
+  in backend/.env accordingly, or free up port 5173.
+
+- Missing environment variables (e.g. app fails to start citing
+  JWT_SECRET_KEY):
+  JWT_SECRET_KEY has no default and is required. Ensure backend/.env
+  exists and is loaded, or the variable is exported in your shell /
+  passed to the Docker container.
+
+- Alembic migration failure:
+  Confirm DATABASE_URL is correct and the database is reachable
+  before running "alembic upgrade head". If migrations were partially
+  applied, check the current revision with "alembic current" from
+  the "backend" directory.
+
+- Frontend unable to reach the backend / network errors in the
+  browser console:
+  Confirm the backend is actually running on http://localhost:8000
+  (visit http://localhost:8000/health directly). Since the frontend's
+  base URL is hardcoded, mismatched hosts/ports will not be caught by
+  any configuration — only by editing frontend/src/api/client.js.
+
+- Incorrect API base URL:
+  Edit the "baseURL" value in frontend/src/api/client.js — there is
+  no environment variable for this in the current implementation.
+
+- Database connection failure inside Docker:
+  Check "docker compose logs db" and "docker compose logs backend"
+  for connection errors, and confirm the "depends_on: db: condition:
+  service_healthy" clause in docker-compose.yml has been satisfied
+  (the backend will not start until the healthcheck passes).
+
+------------------------------------------------------------
+STOPPING SERVICES
+------------------------------------------------------------
+
+Frontend:
+    Press Ctrl+C in the terminal running "npm run dev".
+
+Backend (if run locally with Uvicorn):
+    Press Ctrl+C in the terminal running "uvicorn ...".
+
+Docker containers (backend and/or db):
+    docker compose down
+
+To also remove the persisted database volume (all data will be
+lost):
+    docker compose down -v
+
+------------------------------------------------------------
+QUICK START (experienced developers)
+------------------------------------------------------------
+
+    git clone <your-repository-url>
+    cd attendance-management-system-main
+    cd backend && cp .env.example .env
+    # edit backend/.env: set JWT_SECRET_KEY
+    cd ..
+    JWT_SECRET_KEY=<your-secret> docker compose up -d --build
+    docker exec -it attendance_backend alembic upgrade head
+    # create the first user (see Section 6) using the app's
+    # own hash_password() helper, then:
+    cd frontend && npm install && npm run dev
+    # open http://localhost:5173/login
